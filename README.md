@@ -27,7 +27,7 @@ Key challenges included:
 
 ### 1. Data Cleaning
 To ensure high-quality data for analysis:
-- **Special Codes Handling**: Replaced special codes (`97`, `98`) with `NaN`. Retained codes `91` ("Never Used") and `93` ("Did Not Use Recently").
+- **Special Codes Handling**: Replaced special codes (e.g., `97`, `98`,`994`,`997`,`998`,`999`: Missing, refused, blank, skip set to NaN). Retained codes `91` ("Never Used") and `93` ("Did Not Use Recently").
 - **Target Variable Creation**:
   - Binary target variable for cigarette use prediction (`cigarette_use`).
   - Multi-class target variable for marijuana frequency prediction (`marijuana_freq`).
@@ -37,76 +37,90 @@ To ensure high-quality data for analysis:
 ### 2. Feature Engineering
 To capture meaningful relationships between variables:
 - **Interaction Terms**:
-  - ```
-    df['SCHOOL_SATISFACTION'] = df['SCHFELT'] * df['AVGGRADE']
-    ```
-    Captures combined effects of school safety and academic performance.
-  - ```
-    df['PARENTAL_SUPPORT'] = df['PARHLPHW'] * df['PARCHKHW']
-    ```
-    Represents the combined influence of parental help and monitoring.
+  - `School_Parental_Interaction = dParental_Support * School_Safety`
+  - `Income_Risk_Interaction = Income_Level * Risk_Behavior`
 - **Composite Variables**:
-  - ```
-    df['PEER_INFLUENCE'] = df['FRDPCIG2'] * df['FRDMEVR2']
-    ```
-    Combines peer cigarette use and marijuana use into a single predictor.
-  - ```
-    df['RISK_TAKING'] = df['YOFIGHT2'] + df['YOGRPFT2']
-    ```
-    Aggregates risk-taking behaviors such as fighting and group participation.
+    - `School_Parental_Interaction = Parental_Support × School_Safety`
+    - `Peer_Influence = Peer_Use_Ever × Peer_Use_Month`
+- **Temporal Features** (for Regression):
+  - `Years_Since_First_Drink = Cigarette_Age_of_First_Use - Alcohol_age_of_First_Use`
+  - `School_Satisfaction = Going_to_school_Past_Year × AVG_GRADE`
+  - `Parental_Support = Parents_with_Homework × Parents_Check_If_Homewoke_Done`
+  - `Peer_Influence = CloseFriend_feel_Abt_Smoking × CloseFriend_feel_Abt_Marijuana`
+  - `Risk_Taking = Youth_had_Serious_Fight + Youth_had_Serious_Fight_With_Group`
+  - `Income_Access = INCOME × PRPKCIG2`
+  - `Peer_Parent_Interaction = Peer_Influence × Parental_Support`
+  - `School_Risk_Interaction = Going_to_school_Past_Year × Risk_Taking`
+  - `Total_Risk = Youth_had_Serious_Fight + Youth_had_Serious_Fight_With_Group + Youth_Indulging in_Stealing`
+  - `Years_Since_First_Drink = Cigarette_Age_of_First_Use  - Alcohol_age_of_First_Use`
+  - `Income_Squared = INCOME²`
+  - `Peer_Influence_Squared = Peer_Influence²`
 
 ---
 
 ## 🔍 Modeling Approach
 
-### Why Decision Trees?
-Decision trees were chosen for their interpretability, ability to handle mixed data types, and resistance to outliers. They allow us to identify key predictors in a transparent way, which is critical for public health applications.
+We compared three machine learning algorithms across all prediction tasks:
 
 ### Binary Classification (Cigarette Use)
 - **Objective**: Predict whether a youth has ever smoked cigarettes.
-- **Algorithm**: Decision Tree Classifier with SMOTE to address class imbalance.
-- **Tree Structure**:
+- **Algorithms**: Decision Tree, Bagging, Random Forest, Gradient Boosting
+- **Tree Structure** (Decision Tree):
   - Number of Nodes: 25
   - Number of Leaf Nodes: 13
   - Maximum Depth: 4
 - **Key Metrics**:
-  - Accuracy: 65%
-  - Precision for "Ever Used": 2%
-  - Recall for "Ever Used": 52%
+
+| Model             | Accuracy | Precision | Recall | F1   | ROC AUC |
+|-------------------|----------|-----------|--------|------|---------|
+| Decision Tree     | 0.694    | 0.122     | 0.520  | 0.198| 0.645   |
+| Bagging           | 0.627    | 0.114     | 0.612  | 0.192| 0.642   |
+| Random Forest     | 0.634    | 0.115     | 0.605  | 0.193| 0.641   |
+| Gradient Boosting | 0.642    | 0.117     | 0.599  | 0.195| 0.644   |
+
 - **Key Insights**:
-  - Parental involvement was the most influential predictor (54.8% importance).
-  - School safety contributed significantly (31.1%).
+  - Interaction terms dominate feature importance, with **School_Parental_Interaction** and **Income_Risk_Interaction** together accounting for over 60% of model importance.
+  - Decision Tree achieves the highest accuracy and ROC AUC, while Bagging provides the best recall.
 
 ### Multi-Class Classification (Marijuana Frequency)
 - **Objective**: Predict marijuana use frequency categories (Never, Seldom, Sometimes, Frequent).
-- **Algorithm**: Decision Tree Classifier with SMOTENC to handle categorical features and class imbalance.
-- **Tree Structure**:
+- **Algorithms**: Decision Tree, Bagging, Random Forest, Gradient Boosting
+- **Tree Structure** (Decision Tree):
   - Number of Nodes: 63
   - Number of Leaf Nodes: 32
   - Maximum Depth: 5
 - **Key Metrics**:
-  - Accuracy: 75%
-  - Precision for "Seldom": 17%
-  - Recall for "Seldom": 53%
+
+| Model             | Accuracy | Macro F1 | Weighted F1 |
+|-------------------|----------|----------|-------------|
+| Decision Tree     | 0.729    | 0.350    | 0.770       |
+| Bagging           | 0.729    | 0.349    | 0.770       |
+| Random Forest     | 0.718    | 0.337    | 0.764       |
+| Gradient Boosting | 0.744    | 0.359    | 0.777       |
+
 - **Key Insights**:
-  - Peer influence was the dominant predictor (43.9% importance).
-  - Health status and risk behaviors also played significant roles.
+  - **Peer_Influence** is the dominant predictor (over 50% importance).
+  - Gradient Boosting provides the best overall performance across all metrics.
 
 ### Regression (Age of First Cigarette Use)
 - **Objective**: Predict the age at which youth first smoke cigarettes.
-- **Algorithm**: Decision Tree Regressor with polynomial features to capture non-linear relationships.
-- **Tree Structure**:
-  - Number of Nodes: 53
-  - Number of Leaf Nodes: 27
+- **Algorithms**: Decision Tree, Bagging, Random Forest, Gradient Boosting
+- **Tree Structure** (Decision Tree):
+  - Number of Nodes: 33
+  - Number of Leaf Nodes: 17
   - Maximum Depth: 5
 - **Key Metrics**:
-  - Mean Squared Error (MSE): ~5.8579
-  - Root Mean Squared Error (RMSE): ~2.4203
-  - R² Score: ~0.0328
+
+| Model             | RMSE     | R²       |
+|-------------------|----------|----------|
+| Decision Tree     | 1.986    | 0.438    |
+| Bagging           | 1.944    | 0.461    |
+| Random Forest     | 1.940    | 0.464    |
+| Gradient Boosting | 2.038    | 0.408    |
+
 - **Key Insights**:
-  - Income level was the most influential predictor.
-  - Peer influence and standardized alcohol attitudes were also important.
-  - Risk-taking behaviors contributed meaningfully to predictions.
+  - **Years_Since_First_Drink** is the most important feature (over 70% importance).
+  - Random Forest provides the best predictive performance with the lowest RMSE and highest R².
 
 ---
 
@@ -114,81 +128,79 @@ Decision trees were chosen for their interpretability, ability to handle mixed d
 ```
 youth-drug-use-analysis/
 ├── data/
-│ ├── youth_data.csv # Raw dataset
-│ ├── processed_data.csv # Cleaned dataset used for modeling
+│ ├── youth_data.csv
+│ ├── processed_data.csv
 ├── notebooks/
-│ ├── 01_eda.ipynb # Exploratory Data Analysis notebook
-│ ├── 02_data_cleaning.ipynb # Interactive documentation of data cleaning process
-│ ├── 03_modeling.ipynb # Modeling summary notebook (binary, multi-class, regression)
-├── scripts/
-│ ├── data_cleaning.py # Script for cleaning raw data and generating processed dataset
-│ ├── train_binary_classification.py # Binary classification model (cigarette use)
-│ ├── train_multi_class_classification.py # Multi-class classification model (marijuana frequency)
-│ ├── train_regression.py # Regression model (age of first cigarette use)
+│ ├── binary_classification.ipynb
+│ ├── multi_class_classification.ipynb
+│ ├── regression.ipynb
 ├── results/
-│ ├── binary_decision_tree.png # Decision tree visualization for binary classification
-│ ├── multi_class_decision_tree.png # Decision tree visualization for multi-class classification
-│ ├── regression_decision_tree.png # Decision tree visualization for regression
-│ ├── binary_confusion_matrix.png # Confusion matrix for binary classification
-│ ├── multi_class_confusion_matrix.png # Confusion matrix for multi-class classification
-│ ├── regression_predicted_vs_actual.png # Actual vs predicted scatter plot for regression
-│ ├── regression_residual_plot.png # Residual plot for regression errors
-├── presentation/
-│ ├── slides.pptx # Slide deck summarizing findings and methodology
-│ └── presentation_script.txt # Optional narration script for video presentation
-├── README.md # Project overview, methodology, and instructions
-└── requirements.txt # Python dependencies list
-
+│ ├── Decision_Tree_confusion_matrix.png
+│ ├── Bagging_confusion_matrix.png
+│ ├── Random_Forest_confusion_matrix.png
+│ ├── Gradient_Boosting_confusion_matrix.png
+│ ├── Decision_Tree_actual_vs_predicted.png
+│ ├── Random_Forest_feature_importance.png
+│ ├── best_model_feature_importance.png
+├── README.md
+└── requirements.txt
 ```
-
 ---
 
 ## 🚀 How to Reproduce
 
-Follow these steps to set up and reproduce the analysis:
-
-Clone the Repository
-```
-git clone https://github.com/yourusername/youth-drug-use-analysis.git
-
-cd youth-drug-use-analysis
-```
-Set Up a Virtual Environment
-```
-python -m venv venv
-```
-Activate Virtual Environment on Windows:
-```
-venv\Scripts\activate
-```
-Or on macOS/Linux:
-```
-source venv/bin/activate
-```
-Install Dependencies
-```
-pip install -r requirements.txt
-```
-Run Data Cleaning Scrip
-```
-python scripts/data_cleaning.py
-```
-Run Models Sequentially:
-```
-python scripts/train_binary_classification.py # Binary Classification Model
-python scripts/train_multi_class_classification.py # Multi-Class Model
-python scripts/train_regression.py # Regression Model
-
-```
+1. **Clone the Repository**
+    ```
+    git clone https://github.com/yourusername/youth-drug-use-analysis.git
+    cd youth-drug-use-analysis
+    ```
+2. **Set Up a Virtual Environment**
+    ```
+    python -m venv venv
+    ```
+3. **Activate the Virtual Environment**
+    - On Windows:
+      ```
+      venv\Scripts\activate
+      ```
+    - On macOS/Linux:
+      ```
+      source venv/bin/activate
+      ```
+4. **Install Dependencies**
+    ```
+    pip install -r requirements.txt
+    ```
+5. **Run the Notebooks**
+    ```
+    jupyter notebook notebooks/
+    ```
 
 ---
-
-
 
 ## 🔮 Future Work
 
-1. Expand analysis to other substances (e.g., opioids or vaping behaviors)`.
-2. Incorporate additional features such as social media behavior patterns.
-3. Explore ensemble models like Random Forests or Gradient Boosting.
+1. **Advanced Models**: Explore neural networks or stacked ensemble methods.
+2. **Feature Extraction**: Develop techniques for richer categorical feature extraction.
+3. **Longitudinal Analysis**: Use multi-wave data to track substance use patterns over time.
+4. **Explainable AI**: Apply SHAP or LIME for deeper model interpretation.
+5. **Causal Inference**: Move beyond prediction to causal models for intervention design.
 
 ---
+
+## 📚 References
+
+- **NSDUH-2020-DS0001-info-codebook-1.pdf**: Official codebook for variable definitions and coding.
+- **Project PDF**: "Predicting Youth Substance Use: A Decision Tree Approach" (2024).
+- [SAMHSA. National Survey on Drug Use and Health (NSDUH)](https://www.samhsa.gov/data/data-we-collect/nsduh-national-survey-drug-use-and-health/datafiles/2020)
+- [Scikit-learn documentation: Feature Importance](https://scikit-learn.org/stable/auto_examples/ensemble/plot_forest_importances.html)
+
+
+---
+
+**Prepared:** April 2025  
+**Author:** Khaja Moinuddin Mohammed   
+**Course:** Data 5322 ML 2
+---
+
+📫 Reach out: 💼[LinkedIn](https://linkedin.com/in/emkaymoin) • 📧[Email](mailto:moinuddin0518@example.com)
